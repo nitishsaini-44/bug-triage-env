@@ -1,0 +1,7 @@
+pydantic<3.0,>=2.0
+fastapi<1.0,>=0.100
+uvicorn[standard]<1.0,>=0.23
+openai>=1.0
+pyyaml>=6.0
+httpx<1.0,>=0.25
+openenv-core>=0.2.0
