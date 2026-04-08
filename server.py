@@ -66,7 +66,8 @@ def list_tasks():
 
 
 @app.post("/reset")
-def reset(req: ResetRequest):
+def reset(req: Optional[ResetRequest] = None):
+    req = req or ResetRequest()
     try:
         obs = env.reset(task_id=req.task_id, scenario_index=req.scenario_index)
         return {"observation": obs.model_dump(), "done": False}
