@@ -38,12 +38,19 @@ project/
 │   ├── graders.py           # Deterministic graders for all 3 tasks
 │   └── environment.py       # Core RL environment (reset / step / state)
 │
-├── bug_triage_env.py        # OpenEnv SDK Client Module (used by inference.py)
+├── server/
+│   └── app.py               # OpenEnv compatibility entry point
+│
+├── pyproject.toml           # OpenEnv metadata & dependencies
+├── validate-submission.sh   # Submission validation script
+├── bug_triage_env.py        # OpenEnv SDK Client Module
 ├── server.py                # FastAPI server for HTTP-based interaction
 ├── inference.py             # Baseline LLM inference script
 ├── openenv.yaml             # OpenEnv specification file
+├── uv.lock                  # UV package lockfile
 ├── requirements.txt         # Python dependencies
 ├── Dockerfile               # Container build file
+├── .gitignore               # Ignored files configuration
 └── README.md                # This file
 ```
 
