@@ -1,0 +1,141 @@
+# OpenEnv Environment Specification
+# AI Bug Triage & Debugging Environment
+
+name: bug-triage-debug-env
+description: >
+  A production-grade RL environment that simulates a software engineer's
+  workflow for handling bug reports — from triage and classification through
+  root-cause analysis, patch proposal, and test validation.  Designed for
+  training and evaluating LLM-based coding agents.
+
+version: "1.0.0"
+
+author: "AI Systems Team"
+license: "MIT"
+
+# ── Environment entry point ──────────────────────────────────────────────────
+environment:
+  module: env.environment
+  class: BugTriageEnv
+
+# ── Typed schemas ────────────────────────────────────────────────────────────
+schemas:
+  observation:
+    module: env.models
+    class: Observation
+  action:
+    module: env.models
+    class: Action
+  reward:
+    module: env.models
+    class: Reward
+
+# ── Tasks ────────────────────────────────────────────────────────────────────
+tasks:
+  - id: task_1_classify
+    name: Bug Classification
+    difficulty: easy
+    description: >
+      Classify a bug report into one of four categories
+      (ui, backend, performance, security).
+    max_steps: 1
+    scenarios: 8
+    grading:
+      correct_classification: 1.0
+      wrong_classification: 0.0
+
+  - id: task_2_locate
+    name: Root Cause Identification
+    difficulty: medium
+    description: >
+      Given a bug report, stack trace, and code snippet, identify the
+      faulty file and function.
+    max_steps: 1
+    scenarios: 4
+    grading:
+      correct_file: 0.5
+      correct_function: 0.5
+
+  - id: task_3_debug
+    name: Multi-Step Debugging
+    difficulty: hard
+    description: >
+      End-to-end debugging workflow — classify, locate, fix, and test
+      in a multi-step episode.
+    max_steps: 4
+    scenarios: 3
+    grading:
+      correct_classification: 0.2
+      correct_file_and_function: 0.3
+      correct_fix: 0.3
+      passing_test: 0.2
+
+# ── Action space ─────────────────────────────────────────────────────────────
+action_space:
+  type: structured
+  fields:
+    action_type:
+      type: string
+      enum: [classify, locate, fix, test]
+    bug_type:
+      type: string
+      enum: [ui, backend, performance, security]
+      optional: true
+    file:
+      type: string
+      optional: true
+    function:
+      type: string
+      optional: true
+    patch:
+      type: string
+      optional: true
+    run_test:
+      type: boolean
+      optional: true
+
+# ── Observation space ────────────────────────────────────────────────────────
+observation_space:
+  type: structured
+  fields:
+    bug_report:
+      type: string
+    stack_trace:
+      type: string
+    code_snippet:
+      type: string
+    available_files:
+      type: list[string]
+    history:
+      type: list[string]
+    current_step:
+      type: integer
+    task_id:
+      type: string
+    max_steps:
+      type: integer
+    feedback:
+      type: string
+
+# ── Reward specification ─────────────────────────────────────────────────────
+reward:
+  type: per_step
+  range: [-1.0, 1.0]
+  description: >
+    Reward is provided at each step (not just at episode end).
+    Correct actions yield positive reward; incorrect or random actions
+    incur penalties.
+
+# ── Resource constraints ─────────────────────────────────────────────────────
+constraints:
+  vcpu: 2
+  ram_gb: 8
+  max_runtime_minutes: 20
+
+# ── Inference ────────────────────────────────────────────────────────────────
+inference:
+  script: inference.py
+  env_vars:
+    - API_BASE_URL
+    - MODEL_NAME
+    - HF_TOKEN
