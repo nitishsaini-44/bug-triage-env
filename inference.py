@@ -89,10 +89,10 @@ def log_step(
     )
 
 
-def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
+def log_end(task: str, success: bool, steps: int, score: float, rewards: List[float]) -> None:
     rewards_str = ",".join(f"{r:.2f}" for r in rewards)
     print(
-        f"[END] success={str(success).lower()} steps={steps} "
+        f"[END] task={task} success={str(success).lower()} steps={steps} "
         f"score={score:.2f} rewards={rewards_str}",
         flush=True,
     )
@@ -333,7 +333,7 @@ async def run_task(
         print(f"[DEBUG] Error in task {task_id}: {exc}", flush=True)
 
     finally:
-        log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
+        log_end(task=task_id, success=success, steps=steps_taken, score=score, rewards=rewards)
 
     return {
         "task_id": task_id,
@@ -352,7 +352,13 @@ async def run_task(
 async def main() -> None:
     client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
 
-    env = await BugTriageEnv.from_docker_image(IMAGE_NAME)
+    env_url = os.getenv("ENV_URL") or os.getenv("SPACE_URL")
+    if env_url:
+        print(f"[DEBUG] Using remote OpenEnv server: {env_url}", flush=True)
+        env = await BugTriageEnv.from_url(env_url)
+    else:
+        print(f"[DEBUG] Starting local docker container: {IMAGE_NAME}", flush=True)
+        env = await BugTriageEnv.from_docker_image(IMAGE_NAME)
 
     try:
         for task_config in TASKS:
@@ -365,4 +371,10 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    import traceback
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        traceback.print_exc()
+        print(f"[DEBUG] Fatal error in main: {e}", flush=True)
+        print(f"[DEBUG] Fatal error: {e}", flush=True)
