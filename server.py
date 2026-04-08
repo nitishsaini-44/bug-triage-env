@@ -91,3 +91,7 @@ def step(action: Action):
 @app.get("/state")
 def state():
     return env.state()
+
+@app.get("/")
+def home():
+    return {"message": "Welcome to the Bug Triage Environment! The server is running."}
