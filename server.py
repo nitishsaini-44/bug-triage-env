@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Body
 from pydantic import BaseModel
 
 from env.environment import BugTriageEnv
@@ -66,7 +66,7 @@ def list_tasks():
 
 
 @app.post("/reset")
-def reset(req: Optional[ResetRequest] = None):
+def reset(req: Optional[ResetRequest] = Body(default=None)):
     req = req or ResetRequest()
     try:
         obs = env.reset(task_id=req.task_id, scenario_index=req.scenario_index)
