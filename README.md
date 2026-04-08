@@ -1,3 +1,13 @@
+---
+title: Bug Triage Env
+emoji: 🐛
+colorFrom: blue
+colorTo: purple
+sdk: docker
+app_file: server.py
+pinned: false
+---
+
 # 🐛 AI Bug Triage & Debugging Environment
 
 > **OpenEnv-compatible RL environment** for training and evaluating AI agents on real-world software engineering tasks — from bug classification through root-cause analysis, patch proposal, and test validation.
