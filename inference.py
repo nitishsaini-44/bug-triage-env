@@ -318,23 +318,23 @@ async def run_task(
             if done:
                 break
 
-        # ── Score in [0, 1] ──────────────────────────────────────────────
+        # ── Score in (0, 1) ──────────────────────────────────────────────
         if task_id == "task_3_debug":
             # Use deterministic final score from grader
             score = last_info.get("final_score", max(sum(rewards), 0.0))
         else:
-            # Task 1 & 2: single-step, reward is already 0–1
+            # Task 1 & 2: single-step
             score = sum(rewards)
 
-        score = min(max(score, 0.0), 1.0)  # clamp to [0, 1]
-        success = score > 0
+        score = min(max(score, 0.01), 0.99)  # clamp strictly to (0, 1)
+        success = score > 0.5
 
     except Exception as exc:
         print(f"[DEBUG] Error in task {task_id}: {exc}", flush=True)
         if steps_taken == 0:
-            log_step(step=1, action="error()", reward=0.0, done=True, error=str(exc))
+            log_step(step=1, action="error()", reward=0.01, done=True, error=str(exc))
             steps_taken = 1
-            rewards = [0.0]
+            rewards = [0.01]
 
     finally:
         log_end(task=task_id, success=success, steps=steps_taken, score=score, rewards=rewards)
@@ -384,8 +384,8 @@ async def main() -> None:
         for task_config in TASKS:
             t = task_config["task_id"]
             log_start(task=t, env=BENCHMARK, model=MODEL_NAME)
-            log_step(step=1, action="error()", reward=0.0, done=True, error=str(e))
-            log_end(task=t, success=False, steps=1, score=0.0, rewards=[0.0])
+            log_step(step=1, action="error()", reward=0.01, done=True, error=str(e))
+            log_end(task=t, success=False, steps=1, score=0.01, rewards=[0.01])
         return
 
     try:
