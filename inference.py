@@ -331,6 +331,10 @@ async def run_task(
 
     except Exception as exc:
         print(f"[DEBUG] Error in task {task_id}: {exc}", flush=True)
+        if steps_taken == 0:
+            log_step(step=1, action="error()", reward=0.0, done=True, error=str(exc))
+            steps_taken = 1
+            rewards = [0.0]
 
     finally:
         log_end(task=task_id, success=success, steps=steps_taken, score=score, rewards=rewards)
@@ -350,15 +354,27 @@ async def run_task(
 
 
 async def main() -> None:
-    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    api_key_safe = API_KEY or "dummy_key"
+    client = OpenAI(base_url=API_BASE_URL, api_key=api_key_safe)
 
     env_url = os.getenv("ENV_URL") or os.getenv("SPACE_URL")
-    if env_url:
-        print(f"[DEBUG] Using remote OpenEnv server: {env_url}", flush=True)
-        env = await BugTriageEnv.from_url(env_url)
-    else:
-        print(f"[DEBUG] Starting local docker container: {IMAGE_NAME}", flush=True)
-        env = await BugTriageEnv.from_docker_image(IMAGE_NAME)
+    env = None
+    try:
+        if env_url:
+            print(f"[DEBUG] Using remote OpenEnv server: {env_url}", flush=True)
+            env = await BugTriageEnv.from_url(env_url)
+        else:
+            print(f"[DEBUG] Starting local docker container: {IMAGE_NAME}", flush=True)
+            env = await BugTriageEnv.from_docker_image(IMAGE_NAME)
+    except Exception as e:
+        print(f"[DEBUG] Environment initialization failed: {e}", flush=True)
+        # Manually output failure blocks so the evaluator can parse them.
+        for task_config in TASKS:
+            t = task_config["task_id"]
+            log_start(task=t, env=BENCHMARK, model=MODEL_NAME)
+            log_step(step=1, action="error()", reward=0.0, done=True, error=str(e))
+            log_end(task=t, success=False, steps=1, score=0.0, rewards=[0.0])
+        return
 
     try:
         for task_config in TASKS:
