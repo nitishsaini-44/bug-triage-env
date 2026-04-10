@@ -10,30 +10,8 @@ MANDATORY
     LOCAL_IMAGE_NAME The name of the local image to use for the environment if you are using from_docker_image()
                      method
 
-- Defaults are set only for API_BASE_URL and MODEL_NAME
-    (and should reflect your active inference setup):
-    API_BASE_URL = os.getenv("API_BASE_URL", "<your-active-endpoint>")
-    MODEL_NAME = os.getenv("MODEL_NAME", "<your-active-model>")
-
 - The inference script must be named `inference.py` and placed in the root directory of the project
 - Participants must use OpenAI Client for all LLM calls using above variables
-
-STDOUT FORMAT
-- The script must emit exactly three line types to stdout, in this order:
-
-    [START] task=<task_name> env=<benchmark> model=<model_name>
-    [STEP]  step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>
-    [END]   success=<true|false> steps=<n> score=<score> rewards=<r1,r2,...,rn>
-
-  Rules:
-    - One [START] line at episode begin.
-    - One [STEP] line per step, immediately after env.step() returns.
-    - One [END] line after the episode, always emitted (even on exception).
-    - reward and rewards are formatted to 2 decimal places.
-    - done and success are lowercase booleans: true or false.
-    - error is the raw last_action_error string, or null if none.
-    - All fields on a single line with no newlines within a line.
-    - Each tasks should return score in [0, 1]
 """
 
 import asyncio
@@ -51,10 +29,13 @@ from bug_triage_env import BugTriageAction, BugTriageEnv, BugTriageObservation
 # ═════════════════════════════════════════════════════════════════════════════
 
 IMAGE_NAME = os.getenv("IMAGE_NAME") or os.getenv("LOCAL_IMAGE_NAME") or "bug-triage-env"
-API_KEY = os.getenv("API_KEY")
 
-API_BASE_URL = os.getenv("API_BASE_URL")
-MODEL_NAME = os.getenv("MODEL_NAME") or "gpt-4o"
+# 🚨 FINAL FIX: Strictly using os.environ without any fallbacks to OpenAI/HF.
+# This forces the code to use the LiteLLM proxy and solves the "No API calls" error.
+API_KEY = os.environ["API_KEY"]
+API_BASE_URL = os.environ["API_BASE_URL"]
+
+MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o")
 
 BENCHMARK = "bug-triage-debug-env"
 
@@ -354,8 +335,8 @@ async def run_task(
 
 
 async def main() -> None:
-    api_key_safe = API_KEY or "dummy_key"
-    client = OpenAI(base_url=API_BASE_URL, api_key=api_key_safe)
+    # 🚨 FINAL FIX: Initializing client exactly as requested by the error log
+    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
 
     env_url = os.getenv("ENV_URL") or os.getenv("SPACE_URL")
     env = None
@@ -381,7 +362,8 @@ async def main() -> None:
             await run_task(client, env, task_config)
     finally:
         try:
-            await env.close()
+            if env is not None:
+                await env.close()
         except Exception as e:
             print(f"[DEBUG] env.close() error (container cleanup): {e}", flush=True)
 
