@@ -17,28 +17,12 @@ MANDATORY
 
 - The inference script must be named `inference.py` and placed in the root directory of the project
 - Participants must use OpenAI Client for all LLM calls using above variables
-
-STDOUT FORMAT
-- The script must emit exactly three line types to stdout, in this order:
-
-    [START] task=<task_name> env=<benchmark> model=<model_name>
-    [STEP]  step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>
-    [END]   success=<true|false> steps=<n> score=<score> rewards=<r1,r2,...,rn>
-
-  Rules:
-    - One [START] line at episode begin.
-    - One [STEP] line per step, immediately after env.step() returns.
-    - One [END] line after the episode, always emitted (even on exception).
-    - reward and rewards are formatted to 2 decimal places.
-    - done and success are lowercase booleans: true or false.
-    - error is the raw last_action_error string, or null if none.
-    - All fields on a single line with no newlines within a line.
-    - Each tasks should return score in [0, 1]
 """
 
 import asyncio
 import json
 import os
+import sys
 import textwrap
 from typing import Any, Dict, List, Optional
 
@@ -71,7 +55,6 @@ MAX_TOKENS = 1024
 # ═════════════════════════════════════════════════════════════════════════════
 #  LOGGING HELPERS  (exact format required by OpenEnv)
 # ═════════════════════════════════════════════════════════════════════════════
-
 
 def log_start(task: str, env: str, model: str) -> None:
     print(f"[START] task={task} env={env} model={model}", flush=True)
@@ -113,10 +96,7 @@ SYSTEM_PROMPT = textwrap.dedent("""\
 #  PROMPT BUILDERS
 # ═════════════════════════════════════════════════════════════════════════════
 
-
-def build_prompt(
-    task_id: str, step: int, obs: BugTriageObservation
-) -> str:
+def build_prompt(task_id: str, step: int, obs: BugTriageObservation) -> str:
     """Build the user prompt based on task and step."""
 
     # ── classify ─────────────────────────────────────────────────────────
@@ -177,20 +157,15 @@ def build_prompt(
 #  ACTION PARSING
 # ═════════════════════════════════════════════════════════════════════════════
 
-
-def parse_llm_response(
-    raw: str, task_id: str, step: int
-) -> BugTriageAction:
+def parse_llm_response(raw: str, task_id: str, step: int) -> BugTriageAction:
     """Parse LLM JSON response into an action, fall back on failure."""
     text = raw.strip()
 
-    # Strip markdown fences
     if text.startswith("```"):
         lines = text.split("\n")
         lines = [ln for ln in lines if not ln.strip().startswith("```")]
         text = "\n".join(lines).strip()
 
-    # Attempt direct parse
     for candidate in [text]:
         try:
             data = json.loads(candidate)
@@ -198,7 +173,6 @@ def parse_llm_response(
         except Exception:
             pass
 
-    # Extract JSON substring
     start = text.find("{")
     end = text.rfind("}") + 1
     if start >= 0 and end > start:
@@ -212,7 +186,6 @@ def parse_llm_response(
 
 
 def _fallback_action(task_id: str, step: int) -> BugTriageAction:
-    """Deterministic fallback when the LLM fails to produce valid JSON."""
     if task_id == "task_1_classify" or step == 0:
         return BugTriageAction(action_type="classify", bug_type="backend")
     if task_id == "task_2_locate" or step == 1:
@@ -223,7 +196,6 @@ def _fallback_action(task_id: str, step: int) -> BugTriageAction:
 
 
 def format_action(action: BugTriageAction) -> str:
-    """Format an action for the [STEP] log line."""
     if action.action_type == "classify":
         return f"classify(bug_type={action.bug_type})"
     if action.action_type == "locate":
@@ -240,14 +212,7 @@ def format_action(action: BugTriageAction) -> str:
 #  LLM CALL
 # ═════════════════════════════════════════════════════════════════════════════
 
-
-def get_action_from_llm(
-    client: OpenAI,
-    task_id: str,
-    step: int,
-    obs: BugTriageObservation,
-) -> BugTriageAction:
-    """Call the LLM and parse the response into a BugTriageAction."""
+def get_action_from_llm(client: OpenAI, task_id: str, step: int, obs: BugTriageObservation) -> BugTriageAction:
     prompt = build_prompt(task_id, step, obs)
     try:
         completion = client.chat.completions.create(
@@ -271,13 +236,7 @@ def get_action_from_llm(
 #  TASK RUNNER
 # ═════════════════════════════════════════════════════════════════════════════
 
-
-async def run_task(
-    client: OpenAI,
-    env: BugTriageEnv,
-    task_config: Dict[str, Any],
-) -> Dict[str, Any]:
-    """Run a single task episode and return results dict."""
+async def run_task(client: OpenAI, env: BugTriageEnv, task_config: Dict[str, Any]) -> Dict[str, Any]:
     task_id = task_config["task_id"]
     max_steps = task_config["max_steps"]
     scenario_index = task_config.get("scenario_index", 0)
@@ -298,10 +257,7 @@ async def run_task(
             if result.done:
                 break
 
-            # Get action from LLM
             action = get_action_from_llm(client, task_id, step_num - 1, obs)
-
-            # Step the environment
             result = await env.step(action)
             obs = result.observation
             reward = result.reward or 0.0
@@ -318,15 +274,12 @@ async def run_task(
             if done:
                 break
 
-        # ── Score in [0, 1] ──────────────────────────────────────────────
         if task_id == "task_3_debug":
-            # Use deterministic final score from grader
             score = last_info.get("final_score", max(sum(rewards), 0.0))
         else:
-            # Task 1 & 2: single-step, reward is already 0–1
             score = sum(rewards)
 
-        score = min(max(score, 0.0), 1.0)  # clamp to [0, 1]
+        score = min(max(score, 0.0), 1.0)
         success = score > 0
 
     except Exception as exc:
@@ -348,26 +301,41 @@ async def run_task(
 #  MAIN
 # ═════════════════════════════════════════════════════════════════════════════
 
-
 async def main() -> None:
     client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
 
     env_url = os.getenv("ENV_URL") or os.getenv("SPACE_URL")
-    if env_url:
-        print(f"[DEBUG] Using remote OpenEnv server: {env_url}", flush=True)
-        env = await BugTriageEnv.from_url(env_url)
-    else:
-        print(f"[DEBUG] Starting local docker container: {IMAGE_NAME}", flush=True)
-        env = await BugTriageEnv.from_docker_image(IMAGE_NAME)
+    env = None
 
     try:
+        if env_url:
+            print(f"[DEBUG] Using remote OpenEnv server: {env_url}", flush=True)
+            env = await BugTriageEnv.from_url(env_url)
+        else:
+            print(f"[DEBUG] Starting local docker container: {IMAGE_NAME}", flush=True)
+            env = await BugTriageEnv.from_docker_image(IMAGE_NAME)
+
         for task_config in TASKS:
             await run_task(client, env, task_config)
+
+    except Exception as e:
+        print(f"[DEBUG] Environment setup failed: {e}", flush=True)
+        # FALLBACK: If env crashes before tasks run, we still MUST print [START] and [END] tags
+        # so the hackathon parser doesn't crash with the "No structured output" error.
+        for task_config in TASKS:
+            task_id = task_config["task_id"]
+            log_start(task=task_id, env=BENCHMARK, model=MODEL_NAME)
+            log_end(task=task_id, success=False, steps=0, score=0.0, rewards=[])
+        
+        # Re-raise the exception so it hits the sys.exit(1) below.
+        raise e
+
     finally:
-        try:
-            await env.close()
-        except Exception as e:
-            print(f"[DEBUG] env.close() error (container cleanup): {e}", flush=True)
+        if env:
+            try:
+                await env.close()
+            except Exception as e:
+                print(f"[DEBUG] env.close() error (container cleanup): {e}", flush=True)
 
 
 if __name__ == "__main__":
@@ -377,4 +345,4 @@ if __name__ == "__main__":
     except Exception as e:
         traceback.print_exc()
         print(f"[DEBUG] Fatal error in main: {e}", flush=True)
-        print(f"[DEBUG] Fatal error: {e}", flush=True)
+        sys.exit(1)  # CRITICAL FIX: Ensures platform knows the script actually errored out.
