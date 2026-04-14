@@ -48,8 +48,6 @@ project/
 ├── pyproject.toml           # Python build configuration
 ├── requirements.txt         # Python dependencies
 ├── server.py                # FastAPI server exposing the environment to HTTP
-├── test_env_full.py         # Local script to test deep RL environment flows
-├── test_inference.py        # Simple local test rig for the inference pipeline
 ├── uv.lock                  # UV package lockfile
 ├── validate-submission.sh   # Evaluation validation script
 └── README.md                # This file
