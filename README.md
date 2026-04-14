@@ -39,18 +39,19 @@ project/
 │   └── environment.py       # Core RL environment (reset / step / state)
 │
 ├── server/
-│   └── app.py               # OpenEnv compatibility entry point
+│   └── app.py               # Application endpoints
 │
-├── pyproject.toml           # OpenEnv metadata & dependencies
-├── validate-submission.sh   # Submission validation script
 ├── bug_triage_env.py        # OpenEnv SDK Client Module
-├── server.py                # FastAPI server for HTTP-based interaction
-├── inference.py             # Baseline LLM inference script
-├── openenv.yaml             # OpenEnv specification file
-├── uv.lock                  # UV package lockfile
-├── requirements.txt         # Python dependencies
 ├── Dockerfile               # Container build file
-├── .gitignore               # Ignored files configuration
+├── inference.py             # Baseline LLM inference script handling outputs and logic
+├── openenv.yaml             # OpenEnv specification file
+├── pyproject.toml           # Python build configuration
+├── requirements.txt         # Python dependencies
+├── server.py                # FastAPI server exposing the environment to HTTP
+├── test_env_full.py         # Local script to test deep RL environment flows
+├── test_inference.py        # Simple local test rig for the inference pipeline
+├── uv.lock                  # UV package lockfile
+├── validate-submission.sh   # Evaluation validation script
 └── README.md                # This file
 ```
 
@@ -104,7 +105,7 @@ All actions are **structured JSON objects** — no free-form text allowed.
 - **Output:** One of `ui`, `backend`, `performance`, `security`  
 - **Steps:** 1  
 - **Scenarios:** 8 diverse, real-world bugs  
-- **Grading:** correct → `1.0`, wrong → `0.0`
+- **Grading:** correct → `0.99`, wrong → `0.01` (strictly between 0 and 1)
 
 ### 🟡 Task 2 — Root Cause Identification (Medium)
 
@@ -112,7 +113,7 @@ All actions are **structured JSON objects** — no free-form text allowed.
 - **Output:** Faulty file path and function name  
 - **Steps:** 1  
 - **Scenarios:** 4 scenarios with realistic traces  
-- **Grading:** correct file → `+0.5`, correct function → `+0.5`
+- **Grading:** correct file → `+0.49`, correct function → `+0.5`
 
 ### 🔴 Task 3 — Multi-Step Debugging (Hard)
 
